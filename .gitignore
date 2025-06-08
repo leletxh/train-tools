@@ -1,2 +1,5 @@
 # 忽略 .conda 文件夹
 .conda/
+app.log
+.vscode/
+try.py

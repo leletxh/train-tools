@@ -1,15 +1,21 @@
 import math
 import os
+import shutil
 import subprocess
 import time
 import logging
-from flask import Flask, render_template, request, Response
+from flask import Flask, render_template, request, Response, send_file, jsonify, send_from_directory
 from flask_socketio import SocketIO, emit
 from threading import Thread
 import argparse
 import psutil
 import GPUtil
 import requests
+import mimetypes
+import base64
+import zipfile
+import tempfile
+import urllib.parse
 
 
 # 配置日志系统
@@ -44,26 +50,31 @@ def emit_output(data):
     command_text += data
 
 # 执行命令线程
+# 保留ANSI转义序列输出
 def run_command(command):
     try:
         process = subprocess.Popen(
             command.split(),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            universal_newlines=True,
+            # 不使用universal_newlines，直接字节流读取
         )
-        logging.info(f"Running command: {command}")
-        output_line = f"Running command: {command}\n"
+        logging.info(f"[开始执行命令] {command}")
+        output_line = f"[开始执行命令] {command}\n"
         emit_output(output_line)
 
-        for output in iter(process.stdout.readline, ''):
+        for output in iter(process.stdout.readline, b''):
             if output:
-                emit_output(output)
-                logging.info(output.strip())
+                # 以utf-8解码，保留ANSI转义
+                decoded = output.decode('utf-8', errors='replace')
+                emit_output(decoded)
+                logging.info(decoded.strip())
 
         process.stdout.close()
         return_code = process.wait()
         logging.info(f"Command finished with return code: {return_code}")
+        # 新增：命令执行完毕后，主动推送一条状态日志
+        emit_output(f"\n[命令执行完毕] 状态码: {return_code}\n")
 
     except Exception as e:
         error_msg = f"[Error] Failed to execute command: {e}\n"
@@ -113,7 +124,7 @@ def get_usage():
 print("欢迎使用训练工具，请进行配置：")
 command = input("请输入运行命令（例如：python train.py）: ").strip()
 
-print("是否启动TensorBoard？(y/n)")
+print("是否启动TensorBoard？")
 start_tb = input("请输入(y/n): ").strip().lower() == 'y'
 
 log_path = "logs"
@@ -209,6 +220,153 @@ def proxy(path):
     ]
 
     return Response(resp.content, status=resp.status_code, headers=headers)
+
+
+# 文件树过滤常量
+FILE_TREE_FILTER = True  # 如果为 choose，则过滤 conda 和 runtime 文件夹
+env_dir_name = ".conda"  # 跳转目录名称
+
+# 文件树递归获取函数
+def get_file_tree(root_path, sort='default'):
+    tree = []
+    for entry in os.scandir(root_path):
+        if FILE_TREE_FILTER and entry.name == env_dir_name:
+            continue
+        node = {
+            'name': entry.name,
+            'is_dir': entry.is_dir(),
+        }
+        if entry.is_dir():
+            node['children'] = get_file_tree(entry.path, sort)
+        tree.append(node)
+    return tree
+
+@app.route("/tree")
+def tree_page():
+    return render_template("tree.html")
+
+@app.route("/api/tree")
+def api_tree():
+    root = request.args.get('root', '.')
+    sort = request.args.get('sort', 'default')
+    abs_root = os.path.abspath(root)
+    tree = get_file_tree(abs_root, sort)
+    return {"tree": tree}
+
+
+@app.route("/api/preview")
+def api_preview():
+    path = request.args.get('path')
+    if not path:
+        return jsonify({'error': 'No path'}), 400
+    abs_path = os.path.abspath(path)
+    # 防止越权
+    if not abs_path.startswith(os.path.abspath('.')):
+        return jsonify({'error': 'Permission denied'}), 403
+    if not os.path.isfile(abs_path):
+        return jsonify({'error': 'Not a file'}), 404
+    mime, _ = mimetypes.guess_type(abs_path)
+    if not mime:
+        mime = 'application/octet-stream'
+    try:
+        if mime.startswith('text') or abs_path.endswith(('.py', '.md', '.txt', '.log', '.json', '.csv')):
+            with open(abs_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            return jsonify({'type': 'text', 'content': content})
+        elif mime.startswith('image'):
+            with open(abs_path, 'rb') as f:
+                b64 = base64.b64encode(f.read()).decode('utf-8')
+            return jsonify({'type': 'image', 'content': b64, 'mimetype': mime})
+        elif mime.startswith('video'):
+            with open(abs_path, 'rb') as f:
+                b64 = base64.b64encode(f.read()).decode('utf-8')
+            return jsonify({'type': 'video', 'content': b64, 'mimetype': mime})
+        else:
+            return jsonify({'type': 'other'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/download')
+def api_download():
+    path = request.args.get('path')
+    if not path:
+        return 'No path', 400
+    abs_path = os.path.abspath(path)
+    if not abs_path.startswith(os.path.abspath('.')):
+        return 'Permission denied', 403
+    if not os.path.isfile(abs_path):
+        return 'Not a file', 404
+    dir_name = os.path.dirname(abs_path)
+    file_name = os.path.basename(abs_path)
+    return send_from_directory(dir_name, file_name, as_attachment=True)
+
+@app.route('/api/download_folder')
+def api_download_folder():
+    path = request.args.get('path')
+    if not path:
+        return 'No path', 400
+    abs_path = os.path.abspath(path)
+    if not abs_path.startswith(os.path.abspath('.')):
+        return 'Permission denied', 403
+    if not os.path.isdir(abs_path):
+        return 'Not a folder', 404
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    zip_path = tmp.name
+    tmp.close()
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for root, dirs, files in os.walk(abs_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, abs_path)
+                zf.write(file_path, arcname)
+    return send_file(zip_path, as_attachment=True, download_name=os.path.basename(abs_path)+'.zip')
+
+@app.route('/api/upload', methods=['POST'])
+def api_upload():
+    path = request.args.get('path')
+    if not path:
+        return {'success': False, 'error': 'No path'}, 400
+    abs_path = os.path.abspath(path)
+    if not abs_path.startswith(os.path.abspath('.')):
+        return {'success': False, 'error': 'Permission denied'}, 403
+    if not os.path.isdir(abs_path):
+        return {'success': False, 'error': 'Not a folder'}, 404
+    files = request.files.getlist('files')
+    if not files:
+        return {'success': False, 'error': 'No files'}, 400
+    try:
+        for f in files:
+            save_path = os.path.join(abs_path, f.filename)
+            f.save(save_path)
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}, 500
+
+@app.route('/api/delete', methods=['POST'])
+def api_delete():
+    data = request.get_json()
+    path = data.get('path')
+    type_ = data.get('type')
+    if not path:
+        return jsonify(success=False, error='缺少路径')
+    # 路径解码
+    path  = urllib.parse.unquote(path)
+    print(f"Attempting to delete: {path}, type: {type_}")
+    try:
+        if type_ == 'folder':
+            if os.path.exists(path):
+                shutil.rmtree(path)
+            else:
+                return jsonify(success=False, error='文件夹不存在')
+        else:
+            if os.path.exists(path):
+                os.remove(path)
+            else:
+                return jsonify(success=False, error='文件不存在')
+        return jsonify(success=True)
+    except Exception as e:
+        return jsonify(success=False, error=str(e))
 
 
 # 命令执行线程

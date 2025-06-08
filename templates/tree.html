@@ -1,0 +1,451 @@
+<!-- 文件树主页面，前端AJAX获取数据并渲染nnn -->
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <title>文件树</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f9f9f9;
+            font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h2, h4 {
+            font-weight: 600;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+
+        .folder {
+            font-weight: 500;
+            cursor: pointer;
+            color: #333;
+        }
+
+        .file {
+            color: #555;
+            cursor: pointer;
+        }
+
+        /* 右键菜单 */
+        #context-menu {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 10000;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            min-width: 120px;
+        }
+
+        #context-menu ul {
+            margin: 0;
+            padding: 6px 0;
+            list-style: none;
+        }
+
+        #context-menu li {
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        #context-menu li:hover {
+            background-color: #f0f0f0;
+        }
+
+        #preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #preview-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 80vw;
+            max-height: 80vh;
+            overflow: auto;
+            position: relative;
+        }
+
+        #preview-close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            background: none;
+            border: none;
+            color: #888;
+        }
+
+        #preview-close-btn:hover {
+            color: #333;
+        }
+
+        /* 上传弹窗 */
+        #upload-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #upload-modal > div {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow: auto;
+            position: relative;
+        }
+
+        #upload-form button {
+            margin-top: 10px;
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #upload-form button:hover {
+            background-color: #357ABD;
+        }
+
+        #drop-area {
+            border: 1px dashed #aaa;
+            padding: 20px;
+            text-align: center;
+            border-radius: 6px;
+            transition: background-color 0.3s ease;
+        }
+
+        #drop-area:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* 排序按钮 */
+        #sort-buttons button {
+            background-color: #e0e0e0;
+            border: none;
+            padding: 8px 12px;
+            margin-right: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #sort-buttons button:hover {
+            background-color: #d0d0d0;
+        }
+
+        #sort-buttons button.active {
+            background-color: #4a90e2;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align:right;margin-bottom:10px;">
+        <select id="lang-select" onchange="setLang(this.value)">
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+    <h2>文件树</h2>
+    <div id="file-tree"></div>
+
+    <div id="preview-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+        <div id="preview-content">
+            <button id="preview-close-btn" onclick="closePreview()">✖</button>
+            <div id="preview-body"></div>
+        </div>
+    </div>
+
+    <div id="context-menu" style="display:none;position:absolute;z-index:10000;background:#fff;border:1px solid #ccc;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.15);min-width:120px;">
+        <ul style="margin:0;padding:6px 0;list-style:none;">
+            <li id="menu-download" style="padding:8px 20px;cursor:pointer;">下载</li>
+            <li id="menu-upload" style="padding:8px 20px;cursor:pointer;display:none;">上传</li>
+            <li id="menu-delete" style="padding:8px 20px;cursor:pointer;color:red;">删除</li>
+        </ul>
+    </div>
+    <div id="upload-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:#fff;padding:20px;border-radius:8px;max-width:400px;max-height:80vh;overflow:auto;position:relative;">
+            <button onclick="closeUploadModal()" style="position:absolute;top:10px;right:10px;">✖</button>
+            <h4>上传文件</h4>
+            <form id="upload-form">
+                <input id="upload-input" type="file" name="files" multiple style="margin-bottom:10px;" />
+                <div style="border:1px dashed #aaa;padding:20px;text-align:center;margin-bottom:10px;" id="drop-area">拖拽文件到此处</div>
+                <button type="submit">上传</button>
+            </form>
+            <div id="upload-status"></div>
+        </div>
+    </div>
+
+    <script>
+    // 递归渲染文件树，添加点击事件
+    function renderTree(tree, parentPath = '', collapsed = true) {
+        if (!tree || tree.length === 0) return '';
+        let html = '<ul>';
+        for (const node of tree) {
+            const fullPath = parentPath ? parentPath + '/' + node.name : node.name;
+            if (node.is_dir) {
+                html += `<li><span class='folder' onclick="toggleFolder(this)">📁 ${node.name}</span>`;
+                if (node.children && node.children.length > 0) {
+                    html += `<ul style='display:none;'>` + renderTree(node.children, fullPath, true).replace(/^<ul>|<\/ul>$/g, '') + `</ul>`;
+                }
+                html += '</li>';
+            } else {
+                html += `<li><span class='file' onclick="previewFile('${encodeURIComponent(fullPath)}')">📄 ${node.name}</span></li>`;
+            }
+        }
+        html += '</ul>';
+        return html;
+    }
+    // 获取文件树数据并渲染
+    fetch('/api/tree')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('file-tree').innerHTML = renderTree(data.tree, '', true);
+        });
+    // 展开/折叠文件夹
+    function toggleFolder(el) {
+        const li = el.parentElement;
+        const ul = li.querySelector('ul');
+        if (ul) {
+            if (ul.children.length === 0 || (ul.innerHTML.trim() === '')) {
+                alert('该文件夹是空的');
+                return;
+            }
+            ul.style.display = ul.style.display === 'none' ? '' : 'none';
+        }
+    }
+    // 文件预览
+    function previewFile(path) {
+        fetch('/api/preview?path=' + path)
+            .then(res => res.json())
+            .then(data => {
+                const body = document.getElementById('preview-body');
+                if (data.type === 'text') {
+                    body.innerHTML = `<pre style='white-space:pre-wrap;'>${escapeHtml(data.content)}</pre>`;
+                } else if (data.type === 'image') {
+                    body.innerHTML = `<img src='data:${data.mimetype};base64,${data.content}' style='max-width:70vw;max-height:70vh;' />`;
+                } else if (data.type === 'video') {
+                    body.innerHTML = `<video src='data:${data.mimetype};base64,${data.content}' controls style='max-width:70vw;max-height:70vh;'></video>`;
+                } else {
+                    body.innerHTML = '无法预览该文件类型';
+                }
+                document.getElementById('preview-modal').style.display = 'flex';
+            });
+    }
+    function closePreview() {
+        document.getElementById('preview-modal').style.display = 'none';
+    }
+    function escapeHtml(text) {
+        var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+    // 右键菜单
+    let contextTarget = null;
+    let contextTargetType = null;
+    let contextTargetPath = null;
+    document.addEventListener('contextmenu', function(e) {
+        let node = e.target;
+        if (node.classList.contains('folder') || node.classList.contains('file')) {
+            e.preventDefault();
+            contextTarget = node;
+            contextTargetType = node.classList.contains('folder') ? 'folder' : 'file';
+            // 解析路径
+            let path = '';
+            let cur = node;
+            while (cur && cur.tagName === 'SPAN') {
+                let li = cur.parentElement;
+                let parentUl = li.parentElement;
+                let parentLi = parentUl && parentUl.parentElement && parentUl.parentElement.tagName === 'LI' ? parentUl.parentElement : null;
+                path = (cur.textContent.replace(/^📁 |^📄 /, '') + (path ? '/' + path : ''));
+                cur = parentLi ? parentLi.querySelector('span.folder') : null;
+            }
+            contextTargetPath = encodeURIComponent(path);
+            // 菜单显示
+            const menu = document.getElementById('context-menu');
+            menu.style.display = 'block';
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+            document.getElementById('menu-upload').style.display = contextTargetType === 'folder' ? '' : 'none';
+        } else {
+            document.getElementById('context-menu').style.display = 'none';
+        }
+    });
+    document.addEventListener('click', function() {
+        document.getElementById('context-menu').style.display = 'none';
+    });
+    // 下载
+    document.getElementById('menu-download').onclick = function(e) {
+        e.stopPropagation();
+        if (contextTargetType === 'file') {
+            window.open('/api/download?path=' + contextTargetPath, '_blank');
+        } else if (contextTargetType === 'folder') {
+            window.open('/api/download_folder?path=' + contextTargetPath, '_blank');
+        }
+        document.getElementById('context-menu').style.display = 'none';
+    };
+    // 上传
+    document.getElementById('menu-upload').onclick = function(e) {
+        e.stopPropagation();
+        openUploadModal(contextTargetPath);
+        document.getElementById('context-menu').style.display = 'none';
+    };
+    // 删除
+    document.getElementById('menu-delete').onclick = function(e) {
+        e.stopPropagation();
+        if (!contextTargetPath) return;
+        if (!confirm('确定要删除此' + (contextTargetType === 'folder' ? '文件夹' : '文件') + '吗？')) return;
+        fetch('/api/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: contextTargetPath, type: contextTargetType })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                refreshFileTree();
+            } else {
+                alert('删除失败' + ': ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => {
+            alert('删除失败' + ': ' + err);
+        });
+        document.getElementById('context-menu').style.display = 'none';
+    };
+    // 上传弹窗逻辑
+    let uploadTargetPath = '';
+    function openUploadModal(path) {
+        uploadTargetPath = path;
+        document.getElementById('upload-modal').style.display = 'flex';
+        document.getElementById('upload-status').innerText = '';
+        document.getElementById('upload-form').reset();
+    }
+    function closeUploadModal() {
+        document.getElementById('upload-modal').style.display = 'none';
+    }
+    // 关闭上传弹窗时清空文件选择
+    document.getElementById('upload-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeUploadModal();
+    });
+    // 拖拽上传
+    const dropArea = document.getElementById('drop-area');
+    dropArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropArea.style.background = '#e0e0e0';
+    });
+    dropArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dropArea.style.background = '';
+    });
+    dropArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropArea.style.background = '';
+        document.getElementById('upload-input').files = e.dataTransfer.files;
+    });
+    // 上传表单提交
+    document.getElementById('upload-form').onsubmit = function(e) {
+        e.preventDefault();
+        const files = document.getElementById('upload-input').files;
+        if (!files.length) return;
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+        fetch('/api/upload?path=' + uploadTargetPath, {
+            method: 'POST',
+            body: formData
+        }).then(res => res.json()).then(data => {
+            document.getElementById('upload-status').innerText = data.success ? '上传成功' : ('上传失败' + ': ' + (data.error || ''));
+            if (data.success) {
+                setTimeout(() => {
+                    closeUploadModal();
+                    refreshFileTree();
+                }, 800);
+            }
+        }).catch(err => {
+            document.getElementById('upload-status').innerText = '上传失败' + ': ' + err;
+        });
+    };
+    // Windows风格排序：文件夹在上，文件在下，数字优先，字母/拼音顺序，区分大小写，和资源管理器一致
+    function windowsSort(a, b) {
+        // 文件夹优先
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+        // 数字优先
+        const aIsNum = /^\d/.test(a.name);
+        const bIsNum = /^\d/.test(b.name);
+        if (aIsNum && !bIsNum) return -1;
+        if (!aIsNum && bIsNum) return 1;
+        // 自然顺序（数字按数值，字母区分大小写，中文拼音）
+        return a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'case' });
+    }
+    function sortTree(tree) {
+        tree.sort(windowsSort);
+        for (const node of tree) {
+            if (node.is_dir && node.children) {
+                sortTree(node.children);
+            }
+        }
+    }
+    // 刷新文件树
+    function refreshFileTree() {
+        fetch('/api/tree')
+            .then(res => res.json())
+            .then(data => {
+                sortTree(data.tree);
+                document.getElementById('file-tree').innerHTML = renderTree(data.tree, '', true);
+            });
+    }
+    // 美化文件树样式
+    const style = document.createElement('style');
+    style.innerHTML = `
+        #file-tree ul { padding-left: 18px; }
+        #file-tree li { margin: 2px 0; transition: background 0.2s; border-radius: 4px; }
+        #file-tree li:hover { background: #f0f4ff; }
+        #file-tree .folder { color: #1a73e8; font-weight: 600; }
+        #file-tree .file { color: #333; }
+        #file-tree .folder::before { content: '📂 '; }
+        #file-tree .file::before { content: '📄 '; }
+    `;
+    document.head.appendChild(style);
+
+    // 初始加载
+    refreshFileTree();
+    </script>
+</body>
+</html>
