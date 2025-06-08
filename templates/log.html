@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>实时日志</title>
+    <style>
+        body {
+            background: black;
+            color: #00FF00;
+            font-family: monospace;
+            margin: 0;
+            padding: 0;
+        }
+        #output {
+            margin: 0;
+            padding: 10px;
+            overflow-y: auto;
+            height: calc(100vh - 40px); /* 减去按钮的高度 */
+            box-sizing: border-box;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        #downloadBtn {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #222;
+            color: #0f0;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+    <pre id="output"></pre>
+    <button id="downloadBtn">📥 下载日志为 .log 文件</button>
+
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script> 
+    <script>
+        const MAX_LINES = 500;
+
+        function scrollToBottom() {
+            const output = document.getElementById("output");
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function limitLines(element, maxLines) {
+            const lines = element.innerHTML.split('\n');
+            if (lines.length > maxLines) {
+                element.innerHTML = lines.slice(-maxLines).join('\n');
+            }
+        }
+
+        function downloadLog() {
+            const output = document.getElementById("output");
+            const blob = new Blob([output.textContent], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'logfile.log';
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        // 初始化 socket.io 连接
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            socket.emit('request_history');
+        });
+
+        socket.on('history', (msg) => {
+            const output = document.getElementById("output");
+            output.textContent = msg.data;
+            limitLines(output, MAX_LINES);
+            scrollToBottom();
+        });
+
+        socket.on('command_output', (msg) => {
+            const output = document.getElementById("output");
+            output.textContent += msg.data;
+            limitLines(output, MAX_LINES);
+            scrollToBottom();
+        });
+
+        // 绑定下载按钮点击事件
+        document.getElementById('downloadBtn').addEventListener('click', downloadLog);
+    </script>
+</body>
+</html>
