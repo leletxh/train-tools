@@ -1,29 +1,27 @@
-# 文件树管理工具
+# 训练工具
 
-本项目是一个基于 Web 的文件树管理工具，支持文件/文件夹的浏览、预览、上传、下载、删除等常用操作，界面风格类似于 Windows 资源管理器。
+本项目是一个基于 Web 的文件树管理工具，支持GPU、CPU使用查看文件/文件夹的浏览、预览、上传、下载、删除等常用操作，日志显示，TB映射
 
 ## 功能特性
-- 递归展示文件夹和文件，支持文件夹展开/折叠
+- 通过可视化图标展示GPU、CPU使用情况
+- 快速查看日志
 - 文件类型智能预览（文本、图片、视频等）
 - 右键菜单支持文件/文件夹的下载、上传、删除
-- 拖拽上传文件，支持多文件上传
-- 文件树支持 Windows 风格排序（文件夹优先、数字优先、拼音顺序、区分大小写）
-- 支持自定义排序方式切换
+- TB映射，只需映射一个端口
 
 ## 使用方法
-1. 启动后端服务（假设为 Python Flask/FastAPI 等，需自行实现 `/api/tree`、`/api/preview`、`/api/download`、`/api/download_folder`、`/api/upload`、`/api/delete` 等接口）
-2. 访问 `tree.html` 页面即可使用文件树管理功能
+1. 启动后端服务
+2. 访问 `http://<host>:<post>/` 
 
 ## 主要文件说明
-- `templates/tree.html`：前端主页面，包含文件树渲染、交互逻辑和样式
-- `__main__.py`：后端服务入口（需自行实现接口）
+- `templates/main.html`：前端主页面，GPU、CPU使用情况以及其他服务
+- `templates/log.html`：日志页面，显示日志
+- `templates/tree.html`：文件查看下载
+- `__main__.py`：后端服务入口
 
 ## 运行环境
-- Python 3.x
-- 推荐使用 Flask、FastAPI 或其他支持静态文件和 API 的 Web 框架
-
-## 截图预览
-（可自行补充页面截图）
+- Python 3.8 以上
+- 需要安装flask、flask_socketio、psutil、GPUtil、requests
 
 ## 许可协议
 MIT License
