@@ -28,6 +28,7 @@ logging.basicConfig(
     ]
 )
 
+# 系统配置
 # 全局变量
 command_text = ""
 system_data_history = []
@@ -37,10 +38,12 @@ TARGET_URL = ""
 # 解析参数
 parser = argparse.ArgumentParser(description="训练工具")
 parser.add_argument("--port", type=str, help="端口号", default="5000")
+parser.add_argument("--user_mt", type=str, help="用户权限系统开关", default="true")
 args = parser.parse_args()
 
 # 初始化 Flask 应用
 app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'  # 添加会话密钥
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 发送输出函数
@@ -147,7 +150,7 @@ if start_tb:
 
     tb_thread = Thread(target=run_tensorboard)
     tb_thread.daemon = True
-    #tb_thread.start()
+    tb_thread.start()
 
 
 # SocketIO 事件处理
@@ -163,7 +166,7 @@ def usage_connect():
 
 # Flask 路由
 @app.route("/")
-def main():
+def index():
     memory = math.ceil(psutil.virtual_memory().total / (1024 ** 3))  # GB
     gpus = GPUtil.getGPUs()
     max_gpu_memory = gpus[0].memoryTotal / 1024 if gpus else 0  # GB
