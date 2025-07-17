@@ -1,161 +1,73 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>实时日志</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        body {
-            background: black;
-            color: #00FF00;
-            font-family: 'Poppins', sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        #output {
-            margin: 0;
-            padding: 10px;
-            overflow-y: auto;
-            height: calc(100vh - 40px); /* 减去按钮的高度 */
-            box-sizing: border-box;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        #downloadBtn {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background-color: #222;
-            color: #0f0;
-            border: none;
-            padding: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            z-index: 999;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.1.0/ansi_up.min.js"></script>
+  <title>实时终端日志</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: monospace;
+      overflow: hidden;
+    }
+
+    #output {
+      max-height: 450px;
+      padding: 10px;
+      overflow-y: scroll;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+  </style>
 </head>
 <body>
 
-    <pre id="output"></pre>
-    <button id="downloadBtn">📥 下载日志为 .log 文件</button>
+<div id="output"></div>
 
-    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script> 
-    <script>
-        const MAX_LINES = 500;
+<script src="https://cdn.socket.io/4.3.2/socket.io.min.js "></script>
+<script>
+  const MAX_LINES = 500;
 
-        function scrollToBottom() {
-            const output = document.getElementById("output");
-            output.scrollTop = output.scrollHeight;
-        }
+  function scrollToBottom() {
+    const output = document.getElementById("output");
+    output.scrollTop = output.scrollHeight;
+  }
 
-        function limitLines(element, maxLines) {
-            const lines = element.innerHTML.split('\n');
-            if (lines.length > maxLines) {
-                element.innerHTML = lines.slice(-maxLines).join('\n');
-            }
-        }
+  function limitLines(element, maxLines) {
+    const lines = element.innerHTML.split('<br>');
+    if (lines.length > maxLines) {
+      element.innerHTML = lines.slice(-maxLines).join('<br>');
+    }
+  }
 
-        function downloadLog() {
-            const output = document.getElementById("output");
-            const blob = new Blob([output.textContent], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'logfile.log';
-            a.click();
-            URL.revokeObjectURL(a.href);
-        }
+  // 初始化 socket.io 连接
+  const socket = io();
 
-        // ANSI颜色码映射到CSS颜色，支持8/16色和24位真彩色
-        const ansiColorMap = {
-            30: '#000', 31: '#f00', 32: '#0f0', 33: '#ff0',
-            34: '#00f', 35: '#f0f', 36: '#0ff', 37: '#fff',
-            90: '#888', 91: '#f88', 92: '#8f8', 93: '#ff8',
-            94: '#88f', 95: '#f8f', 96: '#8ff', 97: '#eee'
-        };
-        // 解析ANSI转义序列并染色，支持24位真彩色
-        function ansiToHtml(str) {
-            // 先转义HTML
-            str = str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            // 处理\t可见化（可选）
-            str = str.replace(/\t/g, '<span style="color:#888">    </span>');
-            let openTags = [];
-            // 处理24位真彩色和普通颜色
-            str = str.replace(/\x1b\[([0-9;]*)m/g, function(_, code) {
-                if (!code) code = '0';
-                let codes = code.split(';').map(Number);
-                let html = '';
-                let i = 0;
-                while (i < codes.length) {
-                    let c = codes[i];
-                    if (c === 0) { // 重置
-                        while(openTags.length) html += '</span>', openTags.pop();
-                        i++;
-                    } else if (c === 1) { // 粗体
-                        html += '<span style="font-weight:bold">';
-                        openTags.push('bold');
-                        i++;
-                    } else if (c === 4) { // 下划线
-                        html += '<span style="text-decoration:underline">';
-                        openTags.push('underline');
-                        i++;
-                    } else if (c === 22) { // 关闭粗体
-                        while(openTags.length && openTags[openTags.length-1]==='bold') html += '</span>', openTags.pop();
-                        i++;
-                    } else if (c === 24) { // 关闭下划线
-                        while(openTags.length && openTags[openTags.length-1]==='underline') html += '</span>', openTags.pop();
-                        i++;
-                    } else if (c === 39) { // 默认前景色
-                        while(openTags.length && openTags[openTags.length-1]==='color') html += '</span>', openTags.pop();
-                        i++;
-                    } else if (c === 38 && codes[i+1] === 2) { // 24位真彩色前景
-                        let r = codes[i+2], g = codes[i+3], b = codes[i+4];
-                        html += `<span style="color:rgb(${r},${g},${b})">`;
-                        openTags.push('color');
-                        i += 5;
-                    } else if (ansiColorMap[c]) { // 8/16色
-                        html += `<span style="color:${ansiColorMap[c]}">`;
-                        openTags.push('color');
-                        i++;
-                    } else {
-                        i++;
-                    }
-                }
-                return html;
-            });
-            // 关闭所有未闭合标签
-            while(openTags.length) str += '</span>', openTags.pop();
-            // 恢复正常换行
-            str = str.replace(/\r/g, '');
-            str = str.replace(/\n/g, '\n'); // 让pre标签自动换行
-            return str;
-        }
+  socket.on('connect', () => {
+    console.log('Connected to server');
+  });
 
-        // 初始化 socket.io 连接
-        const socket = io();
-
-        socket.on('connect', () => {
-            console.log('Connected to server');
-            socket.emit('request_history');
-        });
-
-        socket.on('history', (msg) => {
-            const output = document.getElementById("output");
-            output.innerHTML = ansiToHtml(msg.data);
-            limitLines(output, MAX_LINES);
-            scrollToBottom();
-        });
-
-        socket.on('command_output', (msg) => {
-            const output = document.getElementById("output");
-            output.innerHTML += ansiToHtml(msg.data);
-            limitLines(output, MAX_LINES);
-            scrollToBottom();
-        });
-
-        // 绑定下载按钮点击事件
-        document.getElementById('downloadBtn').addEventListener('click', downloadLog);
-    </script>
+  socket.on('command_output', (msg) => {
+    const output = document.getElementById("output");
+    var ansi_up = new AnsiUp();
+    const html = ansi_up.ansi_to_html(msg.data);
+    output.innerHTML += html + '<br>';
+    limitLines(output, MAX_LINES);
+    output.scrollTop = output.scrollHeight;
+  });
+  {% if OPEN_HISTORY_LOG %}
+  //接收history数据
+  socket.on('history_log', (msg) => {
+    const output = document.getElementById("output");
+    var ansi_up = new AnsiUp();
+    const html = ansi_up.ansi_to_html(msg.data + "\x1b[44m\x1b[37m*\x1b[0m上方历史日志");
+    output.innerHTML += html + '<br>';
+    limitLines(output, MAX_LINES);
+    output.scrollTop = output.scrollHeight;
+  });
+  {% endif %}
+</script>
 </body>
 </html>

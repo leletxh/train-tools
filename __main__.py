@@ -16,6 +16,7 @@ import base64
 import zipfile
 import tempfile
 import urllib.parse
+import re
 
 
 # 配置日志系统
@@ -28,59 +29,71 @@ logging.basicConfig(
     ]
 )
 
+# 系统配置
 # 全局变量
 command_text = ""
 system_data_history = []
 tb_process = None
 TARGET_URL = ""
+OPEN_HISTORY_LOG = True  # 是否开启历史日志功能
 
 # 解析参数
 parser = argparse.ArgumentParser(description="训练工具")
 parser.add_argument("--port", type=str, help="端口号", default="5000")
+parser.add_argument("--user_mt", type=str, help="用户权限系统开关", default="true")
 args = parser.parse_args()
 
 # 初始化 Flask 应用
 app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'  # 添加会话密钥
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# 发送输出函数
-def emit_output(data):
+# 发送函数：只发送完整行
+def emit_output(line):
     global command_text
-    socketio.emit('command_output', {'data': data})
-    command_text += data
+    command_text += line + '\n'
+    if line.strip() == '':  # 忽略空行
+        return
+    socketio.emit('command_output', {'data': line})
 
-# 执行命令线程
-# 保留ANSI转义序列输出
+# 执行命令函数（只发送完整行）
 def run_command(command):
     try:
         process = subprocess.Popen(
             command.split(),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            # 不使用universal_newlines，直接字节流读取
+            bufsize=0,
         )
-        logging.info(f"[开始执行命令] {command}")
-        output_line = f"[开始执行命令] {command}\n"
-        emit_output(output_line)
 
-        for output in iter(process.stdout.readline, b''):
-            if output:
-                # 以utf-8解码，保留ANSI转义
-                decoded = output.decode('utf-8', errors='replace')
-                emit_output(decoded)
-                logging.info(decoded.strip())
+        buffer = ''
+        while True:
+            char = process.stdout.read(1)
+            if not char:
+                break
+            decoded = char.decode('utf-8', errors='replace')
+            buffer += decoded
+
+            # 检查是否有完整行
+            if ('\n' in buffer) or ('\r' in buffer):
+                lines = re.split(r'\r\n|\n|\r', buffer)
+                complete_lines = lines[:-1]
+                buffer = lines[-1]
+
+                for line in complete_lines:
+                    emit_output(line)
+
+        # 处理缓冲区中剩余内容
+        if buffer.strip():
+            if '\r' not in buffer:
+                emit_output(buffer.strip() + '\n')
 
         process.stdout.close()
         return_code = process.wait()
-        logging.info(f"Command finished with return code: {return_code}")
-        # 新增：命令执行完毕后，主动推送一条状态日志
-        emit_output(f"\n[命令执行完毕] 状态码: {return_code}\n")
+        emit_output(f"[命令执行完毕] 状态码: {return_code}\n")
 
     except Exception as e:
-        error_msg = f"[Error] Failed to execute command: {e}\n"
-        emit_output(error_msg)
-        logging.error(error_msg, exc_info=True)
-
+        emit_output(f"[错误] {str(e)}\n")
 
 # 系统资源采集线程
 def get_usage():
@@ -147,13 +160,13 @@ if start_tb:
 
     tb_thread = Thread(target=run_tensorboard)
     tb_thread.daemon = True
-    #tb_thread.start()
+    tb_thread.start()
 
 
 # SocketIO 事件处理
 @socketio.on('connect')
 def handle_connect():
-    emit('history', {'data': command_text})
+    emit('history_log', {'data': command_text})
 
 
 @socketio.on('usage')
@@ -163,7 +176,7 @@ def usage_connect():
 
 # Flask 路由
 @app.route("/")
-def main():
+def index():
     memory = math.ceil(psutil.virtual_memory().total / (1024 ** 3))  # GB
     gpus = GPUtil.getGPUs()
     max_gpu_memory = gpus[0].memoryTotal / 1024 if gpus else 0  # GB
@@ -176,7 +189,7 @@ def main():
 
 @app.route("/log")
 def log():
-    return render_template("log.html")
+    return render_template("log.html", OPEN_HISTORY_LOG=OPEN_HISTORY_LOG)
 
 
 # TensorBoard 代理路由（如果启用）

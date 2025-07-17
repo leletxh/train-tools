@@ -1,4 +1,4 @@
-<!-- 文件树主页面，前端AJAX获取数据并渲染nnn -->
+
 <!DOCTYPE html>
 <html lang="zh-cn">
 <head>
@@ -176,13 +176,6 @@
     </style>
 </head>
 <body>
-    <div style="text-align:right;margin-bottom:10px;">
-        <select id="lang-select" onchange="setLang(this.value)">
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-        </select>
-    </div>
-    <h2>文件树</h2>
     <div id="file-tree"></div>
 
     <div id="preview-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
@@ -220,13 +213,13 @@
         for (const node of tree) {
             const fullPath = parentPath ? parentPath + '/' + node.name : node.name;
             if (node.is_dir) {
-                html += `<li><span class='folder' onclick="toggleFolder(this)">📁 ${node.name}</span>`;
+                html += `<li><span class='folder' onclick="toggleFolder(this)">${node.name}</span>`;
                 if (node.children && node.children.length > 0) {
                     html += `<ul style='display:none;'>` + renderTree(node.children, fullPath, true).replace(/^<ul>|<\/ul>$/g, '') + `</ul>`;
                 }
                 html += '</li>';
             } else {
-                html += `<li><span class='file' onclick="previewFile('${encodeURIComponent(fullPath)}')">📄 ${node.name}</span></li>`;
+                html += `<li><span class='file' onclick="previewFile('${encodeURIComponent(fullPath)}')">${node.name}</span></li>`;
             }
         }
         html += '</ul>';
@@ -281,6 +274,7 @@
     let contextTargetPath = null;
     document.addEventListener('contextmenu', function(e) {
         let node = e.target;
+        const menu = document.getElementById('context-menu');
         if (node.classList.contains('folder') || node.classList.contains('file')) {
             e.preventDefault();
             contextTarget = node;
@@ -292,22 +286,35 @@
                 let li = cur.parentElement;
                 let parentUl = li.parentElement;
                 let parentLi = parentUl && parentUl.parentElement && parentUl.parentElement.tagName === 'LI' ? parentUl.parentElement : null;
-                path = (cur.textContent.replace(/^📁 |^📄 /, '') + (path ? '/' + path : ''));
+                path = (cur.textContent + (path ? '/' + path : ''));
                 cur = parentLi ? parentLi.querySelector('span.folder') : null;
             }
             contextTargetPath = encodeURIComponent(path);
             // 菜单显示
-            const menu = document.getElementById('context-menu');
             menu.style.display = 'block';
             menu.style.left = e.pageX + 'px';
             menu.style.top = e.pageY + 'px';
             document.getElementById('menu-upload').style.display = contextTargetType === 'folder' ? '' : 'none';
         } else {
-            document.getElementById('context-menu').style.display = 'none';
+            // 空白处右键，视为根目录，只允许上传
+            e.preventDefault();
+            contextTarget = null;
+            contextTargetType = 'root';
+            contextTargetPath = encodeURIComponent('');
+            menu.style.display = 'block';
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+            document.getElementById('menu-upload').style.display = '';
+            document.getElementById('menu-download').style.display = 'none';
+            document.getElementById('menu-delete').style.display = 'none';
         }
     });
     document.addEventListener('click', function() {
-        document.getElementById('context-menu').style.display = 'none';
+        const menu = document.getElementById('context-menu');
+        menu.style.display = 'none';
+        // 恢复菜单项显示
+        document.getElementById('menu-download').style.display = '';
+        document.getElementById('menu-delete').style.display = '';
     });
     // 下载
     document.getElementById('menu-download').onclick = function(e) {
@@ -322,7 +329,12 @@
     // 上传
     document.getElementById('menu-upload').onclick = function(e) {
         e.stopPropagation();
-        openUploadModal(contextTargetPath);
+        // 如果是根目录上传，传递'/'
+        if (contextTargetType === 'root') {
+            openUploadModal(""); // 直接传空字符串
+        } else {
+            openUploadModal(contextTargetPath);
+        }
         document.getElementById('context-menu').style.display = 'none';
     };
     // 删除
@@ -351,6 +363,7 @@
     // 上传弹窗逻辑
     let uploadTargetPath = '';
     function openUploadModal(path) {
+        // 这里 path 已经被 encodeURIComponent 过了，直接用
         uploadTargetPath = path;
         document.getElementById('upload-modal').style.display = 'flex';
         document.getElementById('upload-status').innerText = '';
