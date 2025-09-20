@@ -1,0 +1,167 @@
+body {
+    background-color: #f9f9f9;
+    font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+}
+
+h2, h4 {
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+}
+
+ul {
+    list-style: none;
+    padding-left: 20px;
+}
+
+.folder {
+    font-weight: 500;
+    cursor: pointer;
+    color: #333;
+}
+
+.file {
+    color: #555;
+    cursor: pointer;
+}
+
+/* 右键菜单 */
+#context-menu {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    min-width: 120px;
+}
+
+#context-menu ul {
+    margin: 0;
+    padding: 6px 0;
+    list-style: none;
+}
+
+#context-menu li {
+    padding: 8px 20px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#context-menu li:hover {
+    background-color: #f0f0f0;
+}
+
+#preview-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0.5);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+}
+
+#preview-content {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 80vw;
+    max-height: 80vh;
+    overflow: auto;
+    position: relative;
+}
+
+#preview-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    background: none;
+    border: none;
+    color: #888;
+}
+
+#preview-close-btn:hover {
+    color: #333;
+}
+
+/* 上传弹窗 */
+#upload-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0.5);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+#upload-modal > div {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow: auto;
+    position: relative;
+}
+
+#upload-form button {
+    margin-top: 10px;
+    background-color: #4a90e2;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#upload-form button:hover {
+    background-color: #357ABD;
+}
+
+#drop-area {
+    border: 1px dashed #aaa;
+    padding: 20px;
+    text-align: center;
+    border-radius: 6px;
+    transition: background-color 0.3s ease;
+}
+
+#drop-area:hover {
+    background-color: #f0f0f0;
+}
+
+/* 排序按钮 */
+#sort-buttons button {
+    background-color: #e0e0e0;
+    border: none;
+    padding: 8px 12px;
+    margin-right: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#sort-buttons button:hover {
+    background-color: #d0d0d0;
+}
+
+#sort-buttons button.active {
+    background-color: #4a90e2;
+    color: white;
+}

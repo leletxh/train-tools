@@ -37,16 +37,6 @@ tb_process = None
 TARGET_URL = ""
 OPEN_HISTORY_LOG = True  # 是否开启历史日志功能
 
-# 新增全局变量用于存储用户配置
-user_config = {
-    "command": "",
-    "enable_panel": False,
-    "panel_path": "logs"
-}
-
-# 标记是否已配置
-configured = False
-
 # 解析参数
 parser = argparse.ArgumentParser(description="训练工具")
 parser.add_argument("--port", type=str, help="端口号", default="5000")
@@ -168,11 +158,19 @@ def get_usage():
         time.sleep(1)
 
 
-# 默认配置（将在欢迎页中被用户配置覆盖）
-command = ""
-start_tb = False
+# 获取用户输入
+print("欢迎使用训练工具，请进行配置：")
+command = input("请输入运行命令（例如：python train.py）: ").strip()
+
+print("是否启动TensorBoard？")
+start_tb = input("请输入(y/n): ").strip().lower() == 'y'
+
 log_path = "logs"
-TARGET_URL = ""
+if start_tb:
+    log_path = input("请输入TensorBoard日志路径（默认 logs）: ").strip() or "logs"
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    TARGET_URL = "http://localhost:6006"
 
 
 # 启动 TensorBoard 子进程
@@ -204,79 +202,7 @@ def usage_connect():
 # Flask 路由
 @app.route("/")
 def index():
-    # 如果未配置，则重定向到欢迎页
-    if not configured:
-        return render_template("welcome.html")
     return render_template("main.html")
-
-@app.route("/welcome")
-def welcome():
-    return render_template("welcome.html")
-
-@app.route("/api/start-training", methods=["POST"])
-def start_training():
-    global configured, user_config, command, start_tb, log_path, TARGET_URL, tb_thread, tb_process, command_thread
-    
-    try:
-        # 获取JSON数据
-        data = request.get_json()
-        
-        # 更新用户配置
-        user_config["command"] = data.get("command", "")
-        user_config["enable_panel"] = data.get("enablePanel", False)
-        user_config["panel_path"] = data.get("panelPath", "logs")
-        
-        # 更新全局变量
-        command = user_config["command"]
-        start_tb = user_config["enable_panel"]
-        log_path = user_config["panel_path"]
-        
-        # 如果启用了TensorBoard
-        if start_tb:
-            if not os.path.exists(log_path):
-                os.makedirs(log_path)
-            TARGET_URL = "http://localhost:6006"
-            
-            # 启动TensorBoard子进程
-            tb_command = ["tensorboard", "--logdir", log_path, "--host", "0.0.0.0", "--port", "6006"]
-            
-            def run_tensorboard():
-                global tb_process
-                tb_process = subprocess.Popen(tb_command)
-                tb_process.wait()
-            
-            # 如果已有TensorBoard线程，先停止它
-            if tb_thread and tb_thread.is_alive():
-                if tb_process:
-                    tb_process.terminate()
-                    tb_process.wait()
-            
-            tb_thread = Thread(target=run_tensorboard)
-            tb_thread.daemon = True
-            tb_thread.start()
-        else:
-            # 如果之前启用了TensorBoard，现在关闭它
-            if tb_process:
-                tb_process.terminate()
-                tb_process.wait()
-                tb_process = None
-            TARGET_URL = ""
-        
-        # 启动命令执行线程
-        if command:
-            # 如果已有命令线程，先停止它
-            if command_thread and command_thread.is_alive():
-                pass  # 这里可以添加停止旧线程的逻辑
-            
-            command_thread = Thread(target=run_command, args=(command,))
-            command_thread.start()
-        
-        # 标记为已配置
-        configured = True
-        
-        return jsonify({"success": True, "message": "配置已保存"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/config")
 def api_config():
@@ -492,11 +418,9 @@ def api_delete():
         return jsonify(success=False, error=str(e))
 
 
-# 命令执行线程（只有在配置了命令后才启动）
-command_thread = None
-if command:
-    command_thread = Thread(target=run_command, args=(command,))
-    command_thread.start()
+# 命令执行线程
+command_thread = Thread(target=run_command, args=(command,))
+command_thread.start()
 
 # 系统监控线程
 get_usage_thread = Thread(target=get_usage)

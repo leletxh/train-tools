@@ -1,0 +1,50 @@
+body {
+    margin: 0;
+    font-family: monospace;
+    overflow: hidden;
+}
+
+#output {
+    max-height: 450px;
+    padding: 10px;
+    overflow-y: scroll;
+    white-space: pre;
+    word-wrap: normal;
+    font-size: 14px;
+    line-height: 1.4;
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* ANSI颜色类 */
+.ansi-black-fg { color: #3A3A3A; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-green-fg { color: #00A250; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-bright-black-fg { color: #66666; }
+.ansi-bright-red-fg { color: #FF4D4D; }
+.ansi-bright-green-fg { color: #00D95A; }
+.ansi-bright-yellow-fg { color: #FFD700; }
+.ansi-bright-blue-fg { color: #4D94FF; }
+.ansi-bright-magenta-fg { color: #FF66FF; }
+.ansi-bright-cyan-fg { color: #66FFFF; }
+.ansi-bright-white-fg { color: #FFFFFF; }
+.ansi-black-bg { background-color: #3A3A3A; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-bright-black-bg { background-color: #666666; }
+.ansi-bright-red-bg { background-color: #FF4D4D; }
+.ansi-bright-green-bg { background-color: #00D95A; }
+.ansi-bright-yellow-bg { background-color: #FFD700; }
+.ansi-bright-blue-bg { background-color: #4D94FF; }
+.ansi-bright-magenta-bg { background-color: #FF66FF; }
+.ansi-bright-cyan-bg { background-color: #66FFFF; }
+.ansi-bright-white-bg { background-color: #FFFFFF; }

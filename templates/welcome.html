@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>训练工具 - 欢迎页</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/main.css">
+    <style>
+        body {
+            background-color: #f9f9f9;
+            font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        
+        .welcome-container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #4a90e2;
+            margin-bottom: 10px;
+        }
+        
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        
+        .checkbox-group label {
+            margin-bottom: 0;
+        }
+        
+        .submit-btn {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .submit-btn:hover {
+            background-color: #357ABD;
+        }
+        
+        .submit-btn:active {
+            transform: translateY(1px);
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .success-message {
+            color: #27ae60;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-container">
+        <h1>训练工具</h1>
+        <p class="description">请配置您的训练参数以开始使用</p>
+        
+        <form id="config-form">
+            <div class="form-group">
+                <label for="command">训练命令:</label>
+                <textarea id="command" name="command" placeholder="例如: python train.py 或 python test/progress_test.py" required>python test/progress_test.py</textarea>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="enable-panel" name="enable-panel">
+                <label for="enable-panel">启用TensorBoard面板</label>
+            </div>
+            
+            <div class="form-group" id="panel-path-group" style="display: none;">
+                <label for="panel-path">面板路径:</label>
+                <input type="text" id="panel-path" name="panel-path" placeholder="例如: logs" value="logs">
+            </div>
+            
+            <button type="submit" class="submit-btn">开始训练</button>
+            
+            <div id="message"></div>
+        </form>
+    </div>
+
+    <script>
+        // TensorBoard面板选项的显示/隐藏控制
+        document.getElementById('enable-panel').addEventListener('change', function() {
+            const panelPathGroup = document.getElementById('panel-path-group');
+            if (this.checked) {
+                panelPathGroup.style.display = 'block';
+            } else {
+                panelPathGroup.style.display = 'none';
+            }
+        });
+        
+        // 表单提交处理
+        document.getElementById('config-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const command = document.getElementById('command').value.trim();
+            const enablePanel = document.getElementById('enable-panel').checked;
+            const panelPath = document.getElementById('panel-path').value.trim();
+            
+            // 简单验证
+            if (!command) {
+                showMessage('请输入训练命令', 'error');
+                return;
+            }
+            
+            if (enablePanel && !panelPath) {
+                showMessage('请指定面板路径', 'error');
+                return;
+            }
+            
+            // 准备配置数据
+            const config = {
+                command: command,
+                enablePanel: enablePanel,
+                panelPath: panelPath || 'logs'
+            };
+            
+            // 发送配置到服务器
+            fetch('/api/start-training', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('配置已保存，正在启动训练...', 'success');
+                    // 延迟跳转到主页面
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    showMessage('启动失败: ' + (data.error || '未知错误'), 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('网络错误: ' + error.message, 'error');
+            });
+        });
+        
+        // 显示消息函数
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = type + '-message';
+        }
+    </script>
+</body>
+</html>

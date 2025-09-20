@@ -1,73 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-cn">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/ansi_up@5.1.0/ansi_up.min.js"></script>
   <title>实时终端日志</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: monospace;
-      overflow: hidden;
-    }
-
-    #output {
-      max-height: 450px;
-      padding: 10px;
-      overflow-y: scroll;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-  </style>
+  <link rel="stylesheet" href="/static/css/log.css">
 </head>
 <body>
 
 <div id="output"></div>
 
-<script src="https://cdn.socket.io/4.3.2/socket.io.min.js "></script>
-<script>
-  const MAX_LINES = 500;
-
-  function scrollToBottom() {
-    const output = document.getElementById("output");
-    output.scrollTop = output.scrollHeight;
-  }
-
-  function limitLines(element, maxLines) {
-    const lines = element.innerHTML.split('<br>');
-    if (lines.length > maxLines) {
-      element.innerHTML = lines.slice(-maxLines).join('<br>');
-    }
-  }
-
-  // 初始化 socket.io 连接
-  const socket = io();
-
-  socket.on('connect', () => {
-    console.log('Connected to server');
-  });
-
-  socket.on('command_output', (msg) => {
-    const output = document.getElementById("output");
-    var ansi_up = new AnsiUp();
-    const html = ansi_up.ansi_to_html(msg.data);
-    output.innerHTML += html + '<br>';
-    limitLines(output, MAX_LINES);
-    output.scrollTop = output.scrollHeight;
-  });
-  {% if OPEN_HISTORY_LOG %}
-  //接收history数据
-  socket.on('history_log', (msg) => {
-    const output = document.getElementById("output");
-    var ansi_up = new AnsiUp();
-    const html = ansi_up.ansi_to_html(msg.data + "\x1b[44m\x1b[37m*\x1b[0m上方历史日志");
-    output.innerHTML += html + '<br>';
-    limitLines(output, MAX_LINES);
-    output.scrollTop = output.scrollHeight;
-  });
-  {% endif %}
-</script>
+<script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+<script src="/static/js/log.js"></script>
 </body>
 </html>
