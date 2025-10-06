@@ -6,7 +6,7 @@ import sys
 import random
 
 def simulate_training():
-    total = 200
+    total = 2000
     for i in range(total + 1):
         # 模拟训练进度
         percent = (i / total) * 100

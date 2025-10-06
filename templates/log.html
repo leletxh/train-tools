@@ -14,10 +14,56 @@
   <div class="log-controls">
     <button onclick="loadHistoryLog()" class="btn btn-primary">刷新日志</button>
     <button onclick="clearHistoryLog()" class="btn btn-danger">清空历史</button>
+    <button onclick="toggleRegexPanel()" class="btn btn-secondary" id="regexToggleBtn">正则匹配</button>
+  </div>
+</div>
+
+<!-- 正则匹配面板 -->
+<div id="regexPanel" class="regex-panel" style="display: none;">
+  <div class="regex-controls">
+    <div class="regex-header">
+      <h4>信息提取配置</h4>
+      <button onclick="addRegexItem()" class="btn btn-primary btn-small">添加提取项</button>
+    </div>
+    
+    <div class="regex-presets">
+      <label>预设提取项:</label>
+      <button onclick="addPresetRegex('error')" class="btn btn-preset">错误信息</button>
+      <button onclick="addPresetRegex('warning')" class="btn btn-preset">警告信息</button>
+      <button onclick="addPresetRegex('progress')" class="btn btn-preset">训练进度</button>
+      <button onclick="addPresetRegex('epoch')" class="btn btn-preset">训练轮次</button>
+      <button onclick="addPresetRegex('loss')" class="btn btn-preset">损失值</button>
+      <button onclick="addPresetRegex('accuracy')" class="btn btn-preset">准确率</button>
+    </div>
+    
+    <div id="regexItemsList" class="regex-items-list">
+      <!-- 动态添加的正则项目将在这里显示 -->
+    </div>
   </div>
 </div>
 
 <div id="output"></div>
+
+<!-- 信息提取结果表格 -->
+<div id="extractedInfoPanel" class="extracted-info-panel" style="display: none;">
+  <div class="info-header">
+    <h4>提取的关键信息</h4>
+    <button onclick="clearExtractedInfo()" class="btn btn-secondary btn-small">清空</button>
+  </div>
+  <div class="info-table-container">
+    <table id="extractedInfoTable" class="info-table">
+      <thead>
+        <tr id="tableHeader">
+          <th>时间</th>
+          <!-- 动态添加的列头 -->
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <!-- 动态添加的数据行 -->
+      </tbody>
+    </table>
+  </div>
+</div>
 
 <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
 <script src="/static/js/log.js"></script>
