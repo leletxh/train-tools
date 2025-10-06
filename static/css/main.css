@@ -62,9 +62,132 @@ h2, h3 {
     max-height: 120%;
 }
 
+/* 淡入动画 */
 @keyframes fadeEffect {
     from { opacity: 0; }
     to { opacity: 1; }
+}
+
+/* 选项卡切换淡入动画 */
+.tabcontent.fade-in {
+    animation: fadeEffect 0.5s ease-in;
+}
+
+/* 按钮悬停动效 */
+.tab button {
+    font-family: 'Poppins', sans-serif;
+    font-size: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+.tab button::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background-color: #4a90e2;
+    transition: width 0.3s ease, left 0.3s ease;
+}
+
+.tab button:hover::after {
+    width: 100%;
+    left: 0;
+}
+
+/* 图表容器悬停动效 */
+#cpu, #memory, #gpu_memory, #disk {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    border-radius: 6px;
+    background-color: #fff;
+    padding: 10px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#cpu:hover, #memory:hover, #gpu_memory:hover, #disk:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+}
+
+/* 欢迎信息动效 */
+#currentUser {
+    transition: color 0.3s ease;
+}
+
+#currentUser:hover {
+    color: #4a90e2 !important;
+}
+
+/* 页面初始加载动效 */
+body {
+    opacity: 0;
+    animation: fadeIn 0.8s ease-in forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 头部区域动效 */
+#header {
+    opacity: 0;
+    animation: slideInDown 0.6s ease-out 0.2s forwards;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 选项卡按钮初始动效 */
+.tablinks {
+    opacity: 0;
+    animation: popIn 0.4s ease-out 0.5s forwards;
+}
+
+.tablinks:nth-child(2) {
+    animation: popIn 0.4s ease-out 0.6s forwards;
+}
+
+.tablinks:nth-child(3) {
+    animation: popIn 0.4s ease-out 0.7s forwards;
+}
+
+.tablinks:nth-child(4) {
+    animation: popIn 0.4s ease-out 0.8s forwards;
+}
+
+@keyframes popIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    70% {
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 登出按钮悬停动效 */
+button[type="submit"] {
+    transition: all 0.3s ease;
+}
+
+button[type="submit"]:hover {
+    background: #c82333 !important;
+    transform: scale(1.05);
 }
 
 #output {

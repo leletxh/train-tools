@@ -236,7 +236,10 @@ function openTab(evt, tabName) {
     // 使用 class="tabcontent" 获取所有元素并隐藏它们
     tabcontent = document.getElementsByClassName("tabcontent");
     for (i = 0; i < tabcontent.length; i++) {
+        // 暂停当前动画
+        tabcontent[i].style.animation = 'none';
         tabcontent[i].style.display = "none";
+        tabcontent[i].classList.remove("fade-in");
     }
 
     // 获取所有带有 class="tablinks" 的元素并删除类 "active"
@@ -246,7 +249,11 @@ function openTab(evt, tabName) {
     }
 
     // 显示当前选项卡，并添加"活动"选项卡 类到打开选项卡的按钮
-    document.getElementById(tabName).style.display = "block";
+    var currentTab = document.getElementById(tabName);
+    currentTab.style.display = "block";
+    // 强制重排以确保display设置生效
+    currentTab.offsetHeight;
+    currentTab.classList.add("fade-in");
     evt.currentTarget.className += " active";
 }
 
