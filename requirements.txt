@@ -1,0 +1,14 @@
+# Flask Web框架
+Flask==2.3.3
+Flask-SocketIO==5.3.6
+
+# 系统监控
+psutil==5.9.5
+GPUtil==1.4.0
+
+# HTTP请求
+requests==2.31.0
+
+# 其他依赖
+python-socketio==5.8.0
+python-engineio==4.7.1

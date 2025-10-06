@@ -9,6 +9,14 @@
 </head>
 <body>
 
+<div class="log-header">
+  <h3>实时终端日志</h3>
+  <div class="log-controls">
+    <button onclick="loadHistoryLog()" class="btn btn-primary">刷新日志</button>
+    <button onclick="clearHistoryLog()" class="btn btn-danger">清空历史</button>
+  </div>
+</div>
+
 <div id="output"></div>
 
 <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
