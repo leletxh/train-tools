@@ -55,6 +55,4 @@ Thumbs.db
 
 # 上传文件
 uploads/
-
-
-user.json
+users.json

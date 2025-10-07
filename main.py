@@ -81,9 +81,18 @@ def initialize_services(socketio):
     return system_monitor, command_executor, tensorboard_manager
 
 
-def setup_signal_handlers(system_monitor, tensorboard_manager):
+# 全局关闭标志
+shutdown_initiated = False
+
+
+def setup_signal_handlers(socketio, system_monitor, tensorboard_manager):
     """设置信号处理器"""
     def handle_exit(signum, frame):
+        global shutdown_initiated
+        if shutdown_initiated:
+            return  # 避免重复关闭
+        shutdown_initiated = True
+        
         logging.info("正在优雅关闭应用...")
         
         # 停止系统监控
@@ -93,9 +102,7 @@ def setup_signal_handlers(system_monitor, tensorboard_manager):
         # 停止TensorBoard
         if tensorboard_manager:
             tensorboard_manager.stop_tensorboard()
-        
-        sys.exit(0)
-    
+        os._exit(0)
     signal.signal(signal.SIGINT, handle_exit)
     signal.signal(signal.SIGTERM, handle_exit)
 
@@ -115,20 +122,25 @@ def main():
     system_monitor, command_executor, tensorboard_manager = initialize_services(socketio)
     
     # 设置信号处理器
-    setup_signal_handlers(system_monitor, tensorboard_manager)
+    setup_signal_handlers(socketio, system_monitor, tensorboard_manager)
     
     # 启动应用
     logging.info("训练工具应用启动中...")
     try:
-        socketio.run(app, port=int(args.port), debug=(args.config == 'development'))
+        # 禁用重载器以避免重复初始化，只在开发模式下启用调试
+        socketio.run(app, port=int(args.port), debug=(args.config == 'development'), use_reloader=False)
     except Exception as e:
         logging.error(f"应用启动失败: {str(e)}", exc_info=True)
     finally:
-        # 清理资源
-        if system_monitor:
-            system_monitor.stop_monitoring()
-        if tensorboard_manager:
-            tensorboard_manager.stop_tensorboard()
+        # 清理资源 - 只在没有通过信号关闭时才清理
+        global shutdown_initiated
+        if not shutdown_initiated:
+            logging.info("正在优雅关闭应用...")
+            if system_monitor:
+                system_monitor.stop_monitoring()
+            if tensorboard_manager:
+                tensorboard_manager.stop_tensorboard()
+            os._exit(0)
 
 
 if __name__ == "__main__":
